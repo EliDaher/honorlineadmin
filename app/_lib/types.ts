@@ -104,6 +104,119 @@ export type Payment = {
   createdAt: string
 }
 
+export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense'
+
+export type AccountingAccount = {
+  id: string
+  code: string
+  name: string
+  type: AccountType
+  description: string
+  system: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type CurrencyBalance = Record<Currency, number>
+
+export type JournalLine = {
+  accountId: string
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  currency: Currency
+  partyId: string
+  description: string
+}
+
+export type JournalEntry = {
+  id: string
+  date: string
+  sourceType: string
+  sourceId: string
+  sourceAction: string
+  memo: string
+  partyId: string
+  balanced: boolean
+  lines: JournalLine[]
+  createdAt: string
+}
+
+export type AccountingDashboard = {
+  generatedAt: string
+  metrics: {
+    cash: CurrencyBalance
+    receivables: CurrencyBalance
+    inventory: CurrencyBalance
+    payables: CurrencyBalance
+    revenue: CurrencyBalance
+    cogs: CurrencyBalance
+    grossProfit: CurrencyBalance
+    expenses: CurrencyBalance
+    netProfit: CurrencyBalance
+  }
+  counts: {
+    journalEntries: number
+    unbalancedEntries: number
+    expenses: number
+    purchases: number
+  }
+  recentEntries: JournalEntry[]
+}
+
+export type AccountBalance = {
+  account: AccountingAccount
+  raw: CurrencyBalance
+  balance: CurrencyBalance
+}
+
+export type FinancialStatements = {
+  generatedAt: string
+  profitAndLoss: {
+    revenue: CurrencyBalance
+    cogs: CurrencyBalance
+    grossProfit: CurrencyBalance
+    operatingExpenses: CurrencyBalance
+    netProfit: CurrencyBalance
+  }
+  balanceSheet: {
+    assets: AccountBalance[]
+    liabilities: AccountBalance[]
+    equity: AccountBalance[]
+    currentEarnings: CurrencyBalance
+    totals: {
+      assets: CurrencyBalance
+      liabilities: CurrencyBalance
+      equity: CurrencyBalance
+      liabilitiesAndEquity: CurrencyBalance
+    }
+  }
+  accountBalances: AccountBalance[]
+}
+
+export type AccountingExpense = {
+  id: string
+  category: string
+  vendorContactId: string
+  amount: Money
+  paidStatus: 'paid' | 'unpaid'
+  note: string
+  createdAt: string
+}
+
+export type AccountingPurchase = {
+  id: string
+  productId: string
+  supplierContactId: string
+  quantity: number
+  unitCost: Money
+  total: Money
+  paidStatus: 'paid' | 'unpaid'
+  note: string
+  createdAt: string
+}
+
 export type CableRoll = {
   id: string
   productId: string
@@ -184,6 +297,7 @@ export type ViewKey =
   | 'holds'
   | 'sales'
   | 'payments'
+  | 'accounting'
   | 'cables'
 
 export type InventoryData = {
@@ -196,6 +310,12 @@ export type InventoryData = {
   holds: Hold[]
   sales: Sale[]
   payments: Payment[]
+  accountingDashboard: AccountingDashboard | null
+  financialStatements: FinancialStatements | null
+  journalEntries: JournalEntry[]
+  accounts: AccountingAccount[]
+  expenses: AccountingExpense[]
+  purchases: AccountingPurchase[]
   cableRolls: CableRoll[]
   cableCuts: CableCut[]
 }

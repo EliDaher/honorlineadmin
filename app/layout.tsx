@@ -1,12 +1,16 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Cairo } from 'next/font/google'
 
-const inter = Inter({ subsets: ['latin'] })
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  display: 'swap',
+  variable: '--font-cairo'
+})
 
 export const metadata: Metadata = {
-  title: 'HonorLine Admin',
-  description: 'HonorLine Internet Services admin dashboard',
+  title: 'إدارة HonorLine',
+  description: 'لوحة إدارة HonorLine لخدمات الإنترنت والمحاسبة والمخزون',
   icons: {
     icon: '/branding/honorline-logo.png',
     apple: '/branding/honorline-logo.png',
@@ -19,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="ar" dir="rtl">
+      <body className={cairo.variable}>{children}</body>
     </html>
   )
 }

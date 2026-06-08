@@ -5,10 +5,10 @@ export function formatMoney(value: Money | number | undefined, currency: Currenc
   const selectedCurrency = typeof value === 'number' ? currency : value?.currency ?? currency
 
   if (selectedCurrency === 'SYP') {
-    return `${new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(amount)} SYP`
+    return `${new Intl.NumberFormat('ar-SY', { maximumFractionDigits: 0 }).format(amount)} ل.س`
   }
 
-  return new Intl.NumberFormat('en', {
+  return new Intl.NumberFormat('ar-SY', {
     style: 'currency',
     currency: selectedCurrency,
     maximumFractionDigits: 2
@@ -16,13 +16,13 @@ export function formatMoney(value: Money | number | undefined, currency: Currenc
 }
 
 export function formatBalances(balances?: Record<Currency, number>) {
-  if (!balances) return 'USD $0.00 / SYP 0'
+  if (!balances) return 'USD ٠٫٠٠ / SYP ٠'
   return `${formatMoney(balances.USD, 'USD')} / ${formatMoney(balances.SYP, 'SYP')}`
 }
 
 export function dateShort(value?: string) {
-  if (!value) return 'Unavailable'
-  return new Intl.DateTimeFormat('en', {
+  if (!value) return 'غير متوفر'
+  return new Intl.DateTimeFormat('ar-SY', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
