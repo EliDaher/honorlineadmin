@@ -17,18 +17,12 @@ export function InventoryApp({ view, loadViewData, renderView }: InventoryAppPro
   const page = useInventoryPage(loadViewData)
 
   if (!page.ready) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[#eef4f8] text-slate-700">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-700" aria-hidden="true" />
-      </main>
-    )
+    return <main className="grid min-h-screen place-items-center bg-slate-100 text-slate-700"><Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-hidden="true" /></main>
   }
 
   if (!page.token) return <LoginScreen onLogin={page.login} />
 
-  return (
-    <AppShell view={view} user={page.user} loading={page.loading} error={page.error} success={page.success} onRefresh={() => void page.loadData()} onLogout={page.logout}>
-      {renderView({ data: page.data, token: page.token, mutate: page.mutate, saving: page.saving })}
-    </AppShell>
-  )
+  return <AppShell view={view} user={page.user} loading={page.loading} error={page.error} success={page.success} onRefresh={() => void page.loadData()} onLogout={page.logout}>
+    {renderView({ data: page.data, token: page.token, mutate: page.mutate, saving: page.saving })}
+  </AppShell>
 }
