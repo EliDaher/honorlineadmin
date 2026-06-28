@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import AccountingPageContent from '@/features/accounting/components/AccountingPageContent'
 
 export default function AccountingPage() {
-  return <InventoryApp view="accounting" />
+  return <AccountingPageContent />
 }

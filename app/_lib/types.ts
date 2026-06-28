@@ -53,6 +53,7 @@ export type Contact = {
 
 export type Hold = {
   id: string
+  receiptId?: string
   productId: string
   contactId: string
   finalCustomerId?: string
@@ -72,6 +73,22 @@ export type Hold = {
   createdAt: string
   updatedAt: string
   settledAt?: string
+}
+
+export type HoldReceipt = {
+  id: string
+  receiptNumber: string
+  contactId: string
+  finalCustomerId?: string
+  itemIds: string[]
+  items: Hold[]
+  itemCount: number
+  remainingQuantity: number
+  balancesDue: Record<Currency, number>
+  status: 'active' | 'awaiting_payment' | 'settled'
+  note: string
+  createdAt: string
+  updatedAt: string
 }
 
 export type Sale = {
@@ -308,6 +325,7 @@ export type InventoryData = {
   workers: WorkerDetail[]
   customers: CustomerDetail[]
   holds: Hold[]
+  holdReceipts: HoldReceipt[]
   sales: Sale[]
   payments: Payment[]
   accountingDashboard: AccountingDashboard | null

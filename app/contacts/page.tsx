@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import ContactsPageContent from '@/features/contacts/components/ContactsPageContent'
 
 export default function ContactsPage() {
-  return <InventoryApp view="contacts" />
+  return <ContactsPageContent />
 }

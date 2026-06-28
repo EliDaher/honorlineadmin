@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, Pencil, Trash2, X } from 'lucide-react'
 import type { Currency } from '../_lib/types'
 
 export function cx(...classes: Array<string | false | null | undefined>) {
@@ -92,6 +92,33 @@ export function Button({
       {DisplayIcon ? <DisplayIcon className={cx('h-4 w-4 shrink-0', loading && 'animate-spin')} aria-hidden="true" /> : null}
       <span className="truncate">{children}</span>
     </button>
+  )
+}
+
+export function RowActions({
+  onEdit,
+  onDelete,
+  editLoading = false,
+  deleteLoading = false,
+  editDisabled = false,
+  deleteDisabled = false
+}: {
+  onEdit: () => void
+  onDelete: () => void
+  editLoading?: boolean
+  deleteLoading?: boolean
+  editDisabled?: boolean
+  deleteDisabled?: boolean
+}) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <Button type="button" variant="secondary" icon={Pencil} loading={editLoading} disabled={editDisabled} onClick={onEdit} className="min-h-9 px-3 py-1.5">
+        تعديل
+      </Button>
+      <Button type="button" variant="danger" icon={Trash2} loading={deleteLoading} disabled={deleteDisabled} onClick={onDelete} className="min-h-9 px-3 py-1.5">
+        حذف
+      </Button>
+    </div>
   )
 }
 
@@ -275,9 +302,9 @@ export function tdClass(className = '') {
   return cx('border-b border-slate-100 px-4 py-3.5 text-slate-700', className)
 }
 
-export function CurrencySelect({ value, onChange }: { value: Currency; onChange: (value: Currency) => void }) {
+export function CurrencySelect({ value, onChange, disabled = false }: { value: Currency; onChange: (value: Currency) => void; disabled?: boolean }) {
   return (
-    <select value={value} onChange={(event) => onChange(event.target.value as Currency)} className={inputClass()}>
+    <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as Currency)} className={inputClass()}>
       <option value="USD">USD</option>
       <option value="SYP">SYP</option>
     </select>

@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import PaymentsPageContent from '@/features/payments/components/PaymentsPageContent'
 
 export default function PaymentsPage() {
-  return <InventoryApp view="payments" />
+  return <PaymentsPageContent />
 }
