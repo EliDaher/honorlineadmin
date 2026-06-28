@@ -101,7 +101,29 @@ export type Payment = {
   contactId: string
   amount: Money
   note: string
+  date?: string
   createdAt: string
+}
+
+export type CustomerDebtInvoice = {
+  id: string
+  customerId: string
+  amount: Money
+  note: string
+  date: string
+  createdAt: string
+}
+
+export type CustomerStatementEntry = {
+  id: string
+  sourceType: 'debt_invoice' | 'sale' | 'hold' | 'payment'
+  sourceId: string
+  date: string
+  description: string
+  currency: Currency
+  debit?: Money
+  credit?: Money
+  runningBalanceByCurrency: Record<Currency, number>
 }
 
 export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense'
@@ -250,12 +272,45 @@ export type CableCut = {
   createdAt: string
 }
 
+export type ManagedServer = {
+  id: string
+  name: string
+  apiBaseUrl: string
+  username: string
+  notes: string
+  hasPassword: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type ServerPingSummary = {
+  address: string
+  count: number
+  avgMs: number | null
+  received: number
+  transmitted: number
+  lossPercent: number
+  status: 'online' | 'degraded' | 'offline' | 'auth_error' | 'error'
+}
+
+export type ServerApiResult = {
+  fetchedAt: string
+  result: unknown
+  summary?: ServerPingSummary
+  error?: {
+    code: string
+    message: string
+  }
+}
+
 export type PartyLedger = {
   activeHolds: Hold[]
   holds: Hold[]
   salesAsResponsible: Sale[]
   salesAsCustomer: Sale[]
   payments: Payment[]
+  debtInvoices: CustomerDebtInvoice[]
+  statement: CustomerStatementEntry[]
   balancesByCurrency: Record<Currency, number>
   itemsInCustody: number
   soldQuantity: number
@@ -299,6 +354,7 @@ export type ViewKey =
   | 'payments'
   | 'accounting'
   | 'cables'
+  | 'servers'
 
 export type InventoryData = {
   summary: InventorySummary | null
@@ -318,4 +374,5 @@ export type InventoryData = {
   purchases: AccountingPurchase[]
   cableRolls: CableRoll[]
   cableCuts: CableCut[]
+  servers: ManagedServer[]
 }

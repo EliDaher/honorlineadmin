@@ -4,7 +4,10 @@
 
 :root {
   --foreground-rgb: 15, 23, 42;
-  --background-rgb: 241, 245, 249;
+  --background-rgb: 238, 244, 248;
+  --brand-navy: #0b1f33;
+  --brand-cyan: #0891b2;
+  --brand-emerald: #059669;
 }
 
 * {
@@ -18,8 +21,11 @@ html {
 body {
   min-height: 100vh;
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  background:
+    linear-gradient(180deg, rgba(8, 145, 178, 0.06), rgba(238, 244, 248, 0) 280px),
+    rgb(var(--background-rgb));
   font-family: var(--font-cairo), Tahoma, "Segoe UI", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 button,
@@ -37,11 +43,16 @@ textarea {
 
 input[type="number"] {
   direction: ltr;
-  text-align: right;
+  text-align: left;
+}
+
+input[type="date"] {
+  direction: ltr;
+  text-align: left;
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.18);
+  background: rgba(8, 145, 178, 0.2);
 }
 
 .animate-fade-in {
@@ -62,7 +73,7 @@ input[type="number"] {
 
 .lift-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 40px rgba(11, 31, 51, 0.1);
 }
 
 @keyframes fade-in {
@@ -113,15 +124,15 @@ input[type="number"] {
 }
 
 ::-webkit-scrollbar-track {
-  background: #e2e8f0;
+  background: #d9e7ee;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border: 2px solid #e2e8f0;
+  background: #7aa6b7;
+  border: 2px solid #d9e7ee;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: var(--brand-cyan);
 }

@@ -21,7 +21,7 @@ export function StatusPill({
     warning: 'border-amber-200 bg-amber-50 text-amber-700',
     danger: 'border-rose-200 bg-rose-50 text-rose-700',
     neutral: 'border-slate-200 bg-slate-50 text-slate-600',
-    blue: 'border-blue-200 bg-blue-50 text-blue-700'
+    blue: 'border-cyan-200 bg-cyan-50 text-cyan-700'
   }
 
   return (
@@ -52,7 +52,7 @@ export function Field({
 export function inputClass(className = '') {
   return cx(
     'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400',
-    'focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500',
+    'focus:border-cyan-600 focus:ring-4 focus:ring-cyan-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500',
     className
   )
 }
@@ -71,8 +71,8 @@ export function Button({
   loading?: boolean
 }) {
   const variants = {
-    primary: 'border border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 hover:shadow-md hover:shadow-blue-600/20 disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none',
-    secondary: 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700 disabled:text-slate-400',
+    primary: 'border border-cyan-700 bg-cyan-700 text-white shadow-sm shadow-cyan-700/20 hover:bg-cyan-800 hover:shadow-md hover:shadow-cyan-700/20 disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none',
+    secondary: 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:border-cyan-300 hover:bg-cyan-50/60 hover:text-cyan-800 disabled:text-slate-400',
     quiet: 'border border-transparent bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:text-slate-400',
     danger: 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:text-rose-300'
   }
@@ -84,7 +84,7 @@ export function Button({
       {...props}
       disabled={disabled || loading}
       className={cx(
-        'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100',
+        'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100',
         variants[variant],
         className
       )}
@@ -140,9 +140,9 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button type="button" aria-label="إغلاق النافذة" className="absolute inset-0 cursor-default bg-slate-950/35 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <section className={cx('relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 animate-modal-in', sizes[size])}>
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+      <button type="button" aria-label="إغلاق النافذة" className="absolute inset-0 cursor-default bg-[#0b1f33]/45 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <section className={cx('relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl shadow-[#0b1f33]/20 animate-modal-in', sizes[size])}>
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4">
           <div className="min-w-0">
             <h2 id="modal-title" className="text-lg font-bold text-slate-950">{title}</h2>
             {description ? <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p> : null}
@@ -172,8 +172,8 @@ export function Panel({
   className?: string
 }) {
   return (
-    <section className={cx('overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5 animate-soft-in', className)}>
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <section className={cx('overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm shadow-[#0b1f33]/5 animate-soft-in', className)}>
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/65 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-slate-950">{title}</h2>
           {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
@@ -199,18 +199,24 @@ export function Metric({
   tone?: 'blue' | 'emerald' | 'amber' | 'slate'
 }) {
   const tones = {
-    blue: 'bg-blue-50 text-blue-700 ring-blue-100',
+    blue: 'bg-cyan-50 text-cyan-700 ring-cyan-100',
     emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
     amber: 'bg-amber-50 text-amber-700 ring-amber-100',
     slate: 'bg-slate-100 text-slate-700 ring-slate-200'
   }
+  const borders = {
+    blue: 'border-t-cyan-600',
+    emerald: 'border-t-emerald-600',
+    amber: 'border-t-amber-500',
+    slate: 'border-t-slate-500'
+  }
 
   return (
-    <section className="lift-card rounded-lg border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 animate-soft-in">
+    <section className={cx('lift-card rounded-lg border border-t-2 border-slate-200 bg-white p-5 shadow-sm shadow-[#0b1f33]/5 animate-soft-in', borders[tone])}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 truncate text-2xl font-bold text-slate-950">{value}</p>
+          <p className="mt-2 truncate text-2xl font-bold tabular-nums text-slate-950">{value}</p>
         </div>
         {Icon ? (
           <span className={cx('rounded-lg p-2 ring-1', tones[tone])}>
@@ -249,7 +255,7 @@ export function EmptyState({
   icon?: LucideIcon
 }) {
   return (
-    <div className="grid min-h-32 place-items-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+    <div className="grid min-h-32 place-items-center rounded-lg border border-dashed border-cyan-200 bg-cyan-50/40 px-4 py-8 text-center">
       <div>
         {Icon ? <Icon className="mx-auto h-6 w-6 text-slate-400" aria-hidden="true" /> : null}
         <p className="mt-2 text-sm font-semibold text-slate-700">{title}</p>
@@ -264,11 +270,11 @@ export function TableShell({ children }: { children: React.ReactNode }) {
 }
 
 export function tableClass() {
-  return 'w-full min-w-[760px] border-separate border-spacing-0 text-right text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-slate-50/80'
+  return 'w-full min-w-[760px] border-separate border-spacing-0 text-right text-sm tabular-nums [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-cyan-50/35'
 }
 
 export function thClass() {
-  return 'border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500'
+  return 'border-b border-slate-200 bg-slate-100/80 px-4 py-3 text-xs font-semibold text-slate-600'
 }
 
 export function tdClass(className = '') {

@@ -7,13 +7,11 @@ import {
   Archive,
   Boxes,
   Cable,
-  CheckCircle2,
   CircleDollarSign,
   ContactRound,
   CreditCard,
   FolderTree,
   HandCoins,
-  LayoutDashboard,
   Loader2,
   LogOut,
   PackagePlus,
@@ -22,15 +20,25 @@ import {
   Scissors,
   ShieldCheck,
   ShoppingCart,
-  Tags,
-  UserRound,
   UsersRound,
   Warehouse,
   WalletCards
 } from 'lucide-react'
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { apiRequest, authHeaders, login, TOKEN_STORAGE_KEY } from '../_lib/api'
+import type { LucideIcon } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { routes, viewTitle } from '../_config/navigation'
+import { apiRequest, authHeaders, TOKEN_STORAGE_KEY } from '../_lib/api'
 import { dateShort, formatBalances, formatMoney } from '../_lib/format'
+import { emptyData, emptySummary } from '../_lib/inventory-defaults'
+import {
+  categoryLabel,
+  contactName,
+  labelAccountName,
+  labelContactType,
+  labelMemo,
+  labelStatus,
+  productName
+} from '../_lib/inventory-labels'
 import type {
   AccountingAccount,
   AccountingDashboard,
@@ -48,6 +56,7 @@ import type {
   InventoryData,
   InventorySummary,
   JournalEntry,
+  ManagedServer,
   Payment,
   Product,
   Sale,
@@ -55,6 +64,9 @@ import type {
   ViewKey,
   WorkerDetail
 } from '../_lib/types'
+import { LoginScreen } from './auth/login-screen'
+import { ServerHealthPanel } from './dashboard/server-health-panel'
+import { ServersView } from './servers/servers-view'
 import {
   Alert,
   Button,
@@ -73,224 +85,7 @@ import {
   thClass
 } from './ui'
 
-const routes = [
-  { key: 'dashboard', label: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
-  { key: 'products', label: 'المنتجات', href: '/products', icon: Boxes },
-  { key: 'categories', label: 'التصنيفات', href: '/categories', icon: FolderTree },
-  { key: 'contacts', label: 'الجهات', href: '/contacts', icon: ContactRound },
-  { key: 'workers', label: 'العاملون', href: '/workers', icon: ShieldCheck },
-  { key: 'customers', label: 'الزبائن', href: '/customers', icon: UsersRound },
-  { key: 'holds', label: 'الأمانات', href: '/holds', icon: Archive },
-  { key: 'sales', label: 'المبيعات', href: '/sales', icon: ShoppingCart },
-  { key: 'payments', label: 'الدفعات', href: '/payments', icon: CreditCard },
-  { key: 'accounting', label: 'المحاسبة', href: '/accounting', icon: CircleDollarSign },
-  { key: 'cables', label: 'الكابلات', href: '/cables', icon: Cable }
-] satisfies Array<{ key: ViewKey; label: string; href: string; icon: typeof LayoutDashboard }>
-
-const contactTypeLabels: Record<ContactType, string> = {
-  dealer: 'تاجر',
-  customer: 'زبون',
-  worker: 'عامل',
-  supplier: 'مورد'
-}
-
-const statusLabels: Record<string, string> = {
-  active: 'نشط',
-  awaiting_payment: 'بانتظار الدفع',
-  settled: 'مسدد',
-  unpaid: 'غير مدفوع',
-  partial: 'مدفوع جزئيا',
-  paid: 'مدفوع',
-  sale: 'بيع',
-  hold: 'أمانة',
-  customer: 'زبون',
-  contact: 'جهة',
-  use: 'استخدام داخلي',
-  expense: 'مصروف',
-  purchase: 'شراء',
-  product: 'منتج',
-  payment: 'دفعة',
-  cable_sale: 'بيع كابل',
-  cable_roll: 'رول كابل',
-  balanced: 'متوازن',
-  unbalanced: 'غير متوازن'
-}
-
-const accountNameLabels: Record<string, string> = {
-  Cash: 'النقدية',
-  'Accounts Receivable': 'الذمم المدينة',
-  Inventory: 'المخزون',
-  'Accounts Payable': 'الذمم الدائنة',
-  'Opening Balance Equity': 'حقوق الملكية الافتتاحية',
-  'Sales Revenue': 'إيرادات المبيعات',
-  'Cost of Goods Sold': 'تكلفة البضاعة المباعة',
-  'Operating Expenses': 'المصاريف التشغيلية'
-}
-
-const memoLabels: Record<string, string> = {
-  'Sale recorded': 'تم تسجيل بيع',
-  'Payment received': 'تم استلام دفعة',
-  'Initial product inventory value': 'قيمة مخزون افتتاحية للمنتج',
-  'Direct product sale': 'بيع مباشر',
-  'Hold sale settled': 'تسوية بيع أمانة',
-  'Hold payment': 'دفعة أمانة',
-  'Sale payment': 'دفعة بيع',
-  'Direct payment': 'دفعة مباشرة',
-  'Cable sale': 'بيع كابل',
-  'Opening cable roll value': 'قيمة افتتاحية لرول كابل',
-  'Stock purchase': 'شراء مخزون'
-}
-
-const emptyData: InventoryData = {
-  summary: null,
-  products: [],
-  categories: [],
-  contacts: [],
-  workers: [],
-  customers: [],
-  holds: [],
-  sales: [],
-  payments: [],
-  accountingDashboard: null,
-  financialStatements: null,
-  journalEntries: [],
-  accounts: [],
-  expenses: [],
-  purchases: [],
-  cableRolls: [],
-  cableCuts: []
-}
-
-const emptySummary: InventorySummary = {
-  totalProducts: 0,
-  totalContacts: 0,
-  totalCategories: 0,
-  totalCableRolls: 0,
-  lowCableRolls: 0,
-  stockOnHand: 0,
-  stockOnHold: 0,
-  activeHolds: 0,
-  unpaidBalance: { USD: 0, SYP: 0 }
-}
-
-function categoryLabel(category: Category, categories: Category[]) {
-  const parent = category.parentId ? categories.find((item) => item.id === category.parentId) : null
-  return parent ? `${parent.name} / ${category.name}` : category.name
-}
-
-function contactName(id: string, contacts: Contact[]) {
-  return contacts.find((contact) => contact.id === id)?.name || 'غير محدد'
-}
-
-function productName(id: string, products: Product[]) {
-  return products.find((product) => product.id === id)?.name || 'منتج غير معروف'
-}
-
-function viewTitle(view: ViewKey) {
-  return routes.find((route) => route.key === view)?.label || 'لوحة التحكم'
-}
-
-function labelStatus(value?: string) {
-  return value ? statusLabels[value] || value : ''
-}
-
-function labelContactType(value: ContactType) {
-  return contactTypeLabels[value] || value
-}
-
-function labelAccountName(name: string) {
-  return accountNameLabels[name] || name
-}
-
-function labelMemo(memo: string) {
-  return memoLabels[memo] || memo
-}
-
-function LoginScreen({ onLogin }: { onLogin: (token: string, user: User) => void }) {
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin1234')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const result = await login(username, password)
-      localStorage.setItem(TOKEN_STORAGE_KEY, result.data.token)
-      onLogin(result.data.token, result.data.user)
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'تعذر تسجيل الدخول')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="grid min-h-screen lg:grid-cols-[1fr_440px]">
-        <section className="flex min-h-[46vh] flex-col justify-between bg-slate-950 px-6 py-6 text-white sm:px-10 lg:min-h-screen lg:px-14">
-          <div className="flex items-center gap-3">
-            <Image src="/branding/honorline-logo.png" alt="HonorLine" width={64} height={64} priority className="h-12 w-12 rounded-lg object-cover ring-1 ring-white/10" />
-            <div>
-              <p className="text-base font-semibold">HonorLine</p>
-              <p className="text-sm text-slate-400">إدارة العمليات</p>
-            </div>
-          </div>
-          <div className="max-w-2xl py-12">
-            <p className="text-sm font-semibold text-blue-300">المخزون والمبيعات والأمانات والكابلات</p>
-            <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl">
-              مساحة عمل واضحة لإدارة قرارات المخزون اليومية.
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
-              تابع المنتجات، رولات الكابل بالمتر، الجهات المسؤولة، أرصدة الزبائن، وسجل الدفعات من لوحة واحدة منظمة.
-            </p>
-          </div>
-          <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
-            {[
-              ['رولات الكابل', 'قص بالمتر'],
-              ['دفاتر الحساب', 'أرصدة بالدولار والليرة'],
-              ['الأمانات', 'مسؤولية العاملين']
-            ].map(([title, detail]) => (
-              <div key={title} className="rounded-lg border border-white/10 bg-white/5 p-4">
-                <p className="font-semibold text-white">{title}</p>
-                <p className="mt-1 text-slate-400">{detail}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section className="flex items-center justify-center px-6 py-10">
-          <form onSubmit={submit} className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <span className="rounded-lg bg-blue-50 p-2 text-blue-700 ring-1 ring-blue-100">
-                <UserRound className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xl font-semibold text-slate-950">تسجيل دخول الإدارة</p>
-                <p className="text-sm text-slate-500">استخدم بيانات دخول لوحة التحكم.</p>
-              </div>
-            </div>
-            <div className="mt-6 space-y-4">
-              <Field label="اسم المستخدم">
-                <input value={username} onChange={(event) => setUsername(event.target.value)} className={inputClass()} autoComplete="username" />
-              </Field>
-              <Field label="كلمة المرور" hint="بيانات التطوير: admin / admin1234">
-                <input value={password} type="password" onChange={(event) => setPassword(event.target.value)} className={inputClass()} autoComplete="current-password" />
-              </Field>
-            </div>
-            {error ? <div className="mt-4"><Alert tone="danger">{error}</Alert></div> : null}
-            <Button loading={loading} className="mt-6 w-full" icon={ShieldCheck}>
-              دخول
-            </Button>
-          </form>
-        </section>
-      </div>
-    </main>
-  )
-}
-
-export function InventoryApp({ view }: { view: ViewKey }) {
+export function InventoryApp({ view, customerId }: { view: ViewKey; customerId?: string }) {
   const [ready, setReady] = useState(false)
   const [token, setToken] = useState('')
   const [user, setUser] = useState<User | null>(null)
@@ -306,7 +101,7 @@ export function InventoryApp({ view }: { view: ViewKey }) {
     setError('')
     try {
       const headers = authHeaders(token)
-      const [summary, products, categories, contacts, workers, customers, holds, sales, payments, accountingDashboard, financialStatements, journalEntries, accounts, expenses, purchases, cableRolls, cableCuts] = await Promise.all([
+      const [summary, products, categories, contacts, workers, customers, holds, sales, payments, accountingDashboard, financialStatements, journalEntries, accounts, expenses, purchases, cableRolls, cableCuts, servers] = await Promise.all([
         apiRequest<ApiResponse<InventorySummary>>('/api/inventory/summary', { headers }),
         apiRequest<ApiResponse<Product[]>>('/api/products', { headers }),
         apiRequest<ApiResponse<Category[]>>('/api/categories', { headers }),
@@ -323,7 +118,8 @@ export function InventoryApp({ view }: { view: ViewKey }) {
         apiRequest<ApiResponse<InventoryData['expenses']>>('/api/accounting/expenses', { headers }),
         apiRequest<ApiResponse<InventoryData['purchases']>>('/api/accounting/purchases', { headers }),
         apiRequest<ApiResponse<CableRoll[]>>('/api/cables/rolls', { headers }),
-        apiRequest<ApiResponse<CableCut[]>>('/api/cables/cuts', { headers })
+        apiRequest<ApiResponse<CableCut[]>>('/api/cables/cuts', { headers }),
+        apiRequest<ApiResponse<ManagedServer[]>>('/api/servers', { headers })
       ])
       setData({
         summary: summary.data,
@@ -342,7 +138,8 @@ export function InventoryApp({ view }: { view: ViewKey }) {
         expenses: expenses.data,
         purchases: purchases.data,
         cableRolls: cableRolls.data,
-        cableCuts: cableCuts.data
+        cableCuts: cableCuts.data,
+        servers: servers.data
       })
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'تعذر تحميل بيانات النظام')
@@ -389,8 +186,8 @@ export function InventoryApp({ view }: { view: ViewKey }) {
 
   if (!ready) {
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-100 text-slate-700">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-hidden="true" />
+      <main className="grid min-h-screen place-items-center bg-[#eef4f8] text-slate-700">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-700" aria-hidden="true" />
       </main>
     )
   }
@@ -400,9 +197,9 @@ export function InventoryApp({ view }: { view: ViewKey }) {
   const summary = data.summary || emptySummary
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
+    <main className="min-h-screen bg-[#eef4f8] text-slate-950">
       <div className="flex min-h-screen flex-col lg:flex-row">
-        <aside className="border-b border-slate-800 bg-slate-950 px-4 py-4 text-white lg:sticky lg:top-0 lg:h-screen lg:w-68 lg:border-b-0 lg:border-r">
+        <aside className="border-b border-[#173550] bg-[#0b1f33] px-4 py-4 text-white lg:sticky lg:top-0 lg:h-screen lg:w-68 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-3">
             <Image src="/branding/honorline-logo.png" alt="HonorLine" width={56} height={56} priority className="h-11 w-11 rounded-lg object-cover ring-1 ring-white/10" />
             <div className="min-w-0">
@@ -420,7 +217,7 @@ export function InventoryApp({ view }: { view: ViewKey }) {
                   href={route.href}
                   className={cx(
                     'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
-                    active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    active ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-950/20' : 'text-slate-300 hover:bg-white/10 hover:text-white'
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -434,7 +231,7 @@ export function InventoryApp({ view }: { view: ViewKey }) {
           <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6 lg:px-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-blue-700">نظام إدارة ومحاسبة احترافي</p>
+                <p className="text-xs font-semibold text-cyan-700">نظام إدارة ومحاسبة احترافي</p>
                 <h1 className="mt-0.5 truncate text-2xl font-semibold text-slate-950">{viewTitle(view)}</h1>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -452,17 +249,18 @@ export function InventoryApp({ view }: { view: ViewKey }) {
             {error ? <Alert tone="danger">{error}</Alert> : null}
             {success ? <Alert tone="success">{success}</Alert> : null}
             {loading ? <Alert tone="neutral">جار تحميل البيانات...</Alert> : null}
-            {view === 'dashboard' ? <DashboardView summary={summary} data={data} /> : null}
+            {view === 'dashboard' ? <DashboardView summary={summary} data={data} token={token} /> : null}
             {view === 'categories' ? <CategoriesView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'products' ? <ProductsView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'contacts' ? <ContactsView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'workers' ? <WorkersView data={data} /> : null}
-            {view === 'customers' ? <CustomersView data={data} /> : null}
+            {view === 'customers' ? <CustomersView data={data} token={token} mutate={mutate} saving={saving} customerId={customerId} /> : null}
             {view === 'holds' ? <HoldsView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'sales' ? <SalesView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'payments' ? <PaymentsView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'accounting' ? <AccountingView data={data} token={token} mutate={mutate} saving={saving} /> : null}
             {view === 'cables' ? <CablesView data={data} token={token} mutate={mutate} saving={saving} /> : null}
+            {view === 'servers' ? <ServersView data={data} token={token} mutate={mutate} saving={saving} /> : null}
           </div>
         </section>
       </div>
@@ -470,7 +268,7 @@ export function InventoryApp({ view }: { view: ViewKey }) {
   )
 }
 
-function DashboardView({ summary, data }: { summary: InventorySummary; data: InventoryData }) {
+function DashboardView({ summary, data, token }: { summary: InventorySummary; data: InventoryData; token: string }) {
   const lowRolls = data.cableRolls.filter((roll) => roll.remainingMeters <= roll.lowMeterAlert)
 
   return (
@@ -481,6 +279,7 @@ function DashboardView({ summary, data }: { summary: InventorySummary; data: Inv
         <Metric icon={Cable} label="رولات الكابل" value={String(summary.totalCableRolls)} detail={`${summary.lowCableRolls} رولات منخفضة`} tone={summary.lowCableRolls > 0 ? 'amber' : 'emerald'} />
         <Metric icon={WalletCards} label="غير مدفوع" value={formatBalances(summary.unpaidBalance)} detail={`${summary.activeHolds} أمانات نشطة`} tone="blue" />
       </section>
+      <ServerHealthPanel servers={data.servers} token={token} />
       <section className="grid gap-5 xl:grid-cols-2">
         <Panel title="آخر المبيعات" description="أحدث العمليات مع عرض الرصيد المفتوح.">
           <SimpleRows
@@ -508,7 +307,7 @@ function SimpleRows({
 }: {
   rows: string[][]
   empty: string
-  icon?: typeof LayoutDashboard
+  icon?: LucideIcon
 }) {
   if (rows.length === 0) return <EmptyState title={empty} icon={icon} />
 
@@ -545,6 +344,7 @@ type ViewProps = {
   token: string
   mutate: (action: string, run: () => Promise<void>) => Promise<void>
   saving: string
+  customerId?: string
 }
 
 function CategoriesView({ data, token, mutate, saving }: ViewProps) {
@@ -780,15 +580,194 @@ function WorkersView({ data }: { data: InventoryData }) {
   )
 }
 
-function CustomersView({ data }: { data: InventoryData }) {
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function statementSourceLabel(value: string) {
+  const labels: Record<string, string> = {
+    debt_invoice: 'فاتورة دين',
+    sale: 'بيع',
+    hold: 'أمانة',
+    payment: 'دفعة'
+  }
+  return labels[value] || labelStatus(value) || value
+}
+
+function CustomersView({ data, token, mutate, saving, customerId }: ViewProps) {
+  const customer = customerId ? data.customers.find((item) => item.id === customerId) : null
+
+  if (customerId) {
+    if (!customer) {
+      return (
+        <Panel title="تفاصيل الزبون" description="تعذر العثور على هذا الزبون ضمن السجلات الحالية.">
+          <EmptyState title="الزبون غير موجود." description="ارجع إلى قائمة الزبائن واختر زبونا موجودا." icon={UsersRound} />
+        </Panel>
+      )
+    }
+
+    return <CustomerFinancialDetail customer={customer} token={token} mutate={mutate} saving={saving} />
+  }
+
   return (
     <Panel title="دفتر ديون الزبائن" description="الأرصدة المفتوحة وحركة المبيعات لكل زبون.">
-      <SimpleRows
-        icon={UsersRound}
-        rows={data.customers.map((customer) => [customer.name, `الدين ${formatBalances(customer.ledger.balancesByCurrency)}`, `${customer.ledger.salesAsCustomer.length} عملية بيع`])}
-        empty="لا يوجد زبائن بعد. أنشئ جهات من نوع زبون أولا."
-      />
+      {data.customers.length === 0 ? (
+        <EmptyState title="لا يوجد زبائن بعد. أنشئ جهات من نوع زبون أولا." icon={UsersRound} />
+      ) : (
+        <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+          {data.customers.map((item) => (
+            <Link key={item.id} href={`/customers/${item.id}`} className="grid gap-2 px-3 py-3 text-sm transition hover:bg-slate-50 sm:grid-cols-3">
+              <span className="min-w-0 truncate font-semibold text-slate-950">{item.name}</span>
+              <span className="min-w-0 truncate text-slate-600">الدين {formatBalances(item.ledger.balancesByCurrency)}</span>
+              <span className="min-w-0 truncate text-slate-600">{item.ledger.statement.length} حركة مالية</span>
+            </Link>
+          ))}
+        </div>
+      )}
     </Panel>
+  )
+}
+
+function CustomerFinancialDetail({
+  customer,
+  token,
+  mutate,
+  saving
+}: {
+  customer: CustomerDetail
+  token: string
+  mutate: (action: string, run: () => Promise<void>) => Promise<void>
+  saving: string
+}) {
+  const [invoiceOpen, setInvoiceOpen] = useState(false)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [invoice, setInvoice] = useState({ amount: '0', currency: 'USD' as Currency, date: todayInputValue(), note: '' })
+  const [payment, setPayment] = useState({ amount: '0', currency: 'USD' as Currency, date: todayInputValue(), note: '' })
+  const statement = customer.ledger.statement ?? []
+
+  return (
+    <section className="space-y-5">
+      <Modal open={invoiceOpen} onClose={() => setInvoiceOpen(false)} title="إضافة فاتورة دين" description="سجل مبلغا مستحقا على هذا الزبون دون التأثير على المخزون.">
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            mutate('customer-invoice', async () => {
+              await apiRequest(`/api/customers/${customer.id}/debt-invoices`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ ...invoice, amount: Number(invoice.amount) }) })
+              setInvoice({ amount: '0', currency: invoice.currency, date: todayInputValue(), note: '' })
+              setInvoiceOpen(false)
+            })
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="المبلغ">
+              <input required type="number" min="0" step="0.01" value={invoice.amount} onChange={(event) => setInvoice({ ...invoice, amount: event.target.value })} className={inputClass()} />
+            </Field>
+            <Field label="العملة">
+              <CurrencySelect value={invoice.currency} onChange={(currency) => setInvoice({ ...invoice, currency })} />
+            </Field>
+          </div>
+          <Field label="التاريخ">
+            <input required type="date" value={invoice.date} onChange={(event) => setInvoice({ ...invoice, date: event.target.value })} className={inputClass()} />
+          </Field>
+          <Field label="التفاصيل">
+            <textarea value={invoice.note} onChange={(event) => setInvoice({ ...invoice, note: event.target.value })} className={inputClass()} rows={3} />
+          </Field>
+          <Button loading={saving === 'customer-invoice'} icon={Save}>
+            حفظ الفاتورة
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal open={paymentOpen} onClose={() => setPaymentOpen(false)} title="تسجيل دفعة" description="سجل دفعة واردة من هذا الزبون بتاريخها المحاسبي.">
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            mutate('customer-payment', async () => {
+              await apiRequest('/api/payments', {
+                method: 'POST',
+                headers: authHeaders(token),
+                body: JSON.stringify({ targetType: 'customer', targetId: customer.id, customerId: customer.id, ...payment, amount: Number(payment.amount) })
+              })
+              setPayment({ amount: '0', currency: payment.currency, date: todayInputValue(), note: '' })
+              setPaymentOpen(false)
+            })
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="المبلغ">
+              <input required type="number" min="0" step="0.01" value={payment.amount} onChange={(event) => setPayment({ ...payment, amount: event.target.value })} className={inputClass()} />
+            </Field>
+            <Field label="العملة">
+              <CurrencySelect value={payment.currency} onChange={(currency) => setPayment({ ...payment, currency })} />
+            </Field>
+          </div>
+          <Field label="التاريخ">
+            <input required type="date" value={payment.date} onChange={(event) => setPayment({ ...payment, date: event.target.value })} className={inputClass()} />
+          </Field>
+          <Field label="التفاصيل">
+            <textarea value={payment.note} onChange={(event) => setPayment({ ...payment, note: event.target.value })} className={inputClass()} rows={3} />
+          </Field>
+          <Button loading={saving === 'customer-payment'} icon={HandCoins}>
+            تسجيل دفعة
+          </Button>
+        </form>
+      </Modal>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={UsersRound} label="الزبون" value={customer.name} detail={customer.phone || customer.address || 'لا توجد بيانات اتصال'} tone="slate" />
+        <Metric icon={WalletCards} label="الرصيد بالدولار" value={formatMoney(customer.ledger.balancesByCurrency.USD, 'USD')} detail="مدين ناقص دائن" tone={customer.ledger.balancesByCurrency.USD > 0 ? 'blue' : 'emerald'} />
+        <Metric icon={WalletCards} label="الرصيد بالليرة" value={formatMoney(customer.ledger.balancesByCurrency.SYP, 'SYP')} detail="مدين ناقص دائن" tone={customer.ledger.balancesByCurrency.SYP > 0 ? 'blue' : 'emerald'} />
+        <Metric icon={CreditCard} label="الحركات" value={String(statement.length)} detail={`${customer.ledger.payments.length} دفعة مسجلة`} tone="amber" />
+      </section>
+
+      <Panel
+        title={`كشف حساب ${customer.name}`}
+        description="حركة الفواتير والدفعات والمبيعات مع الرصيد الجاري لكل عملة."
+        actions={
+          <>
+            <Button type="button" icon={Save} onClick={() => setInvoiceOpen(true)}>
+              إضافة فاتورة دين
+            </Button>
+            <Button type="button" variant="secondary" icon={HandCoins} onClick={() => setPaymentOpen(true)}>
+              تسجيل دفعة
+            </Button>
+          </>
+        }
+      >
+        {statement.length === 0 ? (
+          <EmptyState title="لا توجد حركة مالية لهذا الزبون بعد." description="أضف فاتورة دين أو سجل دفعة للبدء." icon={CreditCard} />
+        ) : (
+          <TableShell>
+            <table className={tableClass()}>
+              <thead>
+                <tr>
+                  <th className={thClass()}>التاريخ</th>
+                  <th className={thClass()}>النوع</th>
+                  <th className={thClass()}>التفاصيل</th>
+                  <th className={thClass()}>مدين</th>
+                  <th className={thClass()}>دائن</th>
+                  <th className={thClass()}>الرصيد</th>
+                </tr>
+              </thead>
+              <tbody>
+                {statement.map((row) => (
+                  <tr key={row.id}>
+                    <td className={tdClass()}>{dateShort(row.date)}</td>
+                    <td className={tdClass('font-semibold text-slate-950')}>{statementSourceLabel(row.sourceType)}</td>
+                    <td className={tdClass()}>{row.description || '-'}</td>
+                    <td className={tdClass()}>{row.debit ? formatMoney(row.debit) : '-'}</td>
+                    <td className={tdClass()}>{row.credit ? formatMoney(row.credit) : '-'}</td>
+                    <td className={tdClass('font-semibold text-slate-950')}>{formatMoney(row.runningBalanceByCurrency[row.currency] ?? 0, row.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableShell>
+        )}
+      </Panel>
+    </section>
   )
 }
 
@@ -1022,6 +1001,20 @@ function SalesView({ data, token, mutate, saving }: ViewProps) {
   )
 }
 
+function paymentTargetLabel(payment: Payment, data: InventoryData) {
+  if (payment.targetType === 'customer') return contactName(payment.customerId || payment.targetId, data.contacts)
+  if (payment.targetType === 'contact') return contactName(payment.contactId || payment.targetId, data.contacts)
+  if (payment.targetType === 'sale') {
+    const sale = data.sales.find((item) => item.id === payment.targetId)
+    return sale ? productName(sale.productId, data.products) : payment.targetId
+  }
+  if (payment.targetType === 'hold') {
+    const hold = data.holds.find((item) => item.id === payment.targetId)
+    return hold ? productName(hold.productId, data.products) : payment.targetId
+  }
+  return payment.targetId
+}
+
 function PaymentsView({ data, token, mutate, saving }: ViewProps) {
   const [form, setForm] = useState({ targetType: 'customer' as 'sale' | 'hold' | 'customer' | 'contact', targetId: '', amount: '0', currency: 'USD' as Currency, customerId: '', contactId: '', note: '' })
   const [open, setOpen] = useState(false)
@@ -1040,7 +1033,16 @@ function PaymentsView({ data, token, mutate, saving }: ViewProps) {
           onSubmit={(event) => {
             event.preventDefault()
             mutate('payment', async () => {
-              await apiRequest('/api/payments', { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ ...form, amount: Number(form.amount) }) })
+              await apiRequest('/api/payments', {
+                method: 'POST',
+                headers: authHeaders(token),
+                body: JSON.stringify({
+                  ...form,
+                  customerId: form.targetType === 'customer' ? form.targetId : form.customerId,
+                  contactId: form.targetType === 'contact' ? form.targetId : form.contactId,
+                  amount: Number(form.amount)
+                })
+              })
               setForm({ targetType: 'customer', targetId: '', amount: '0', currency: 'USD', customerId: '', contactId: '', note: '' })
               setOpen(false)
             })
@@ -1086,7 +1088,7 @@ function PaymentsView({ data, token, mutate, saving }: ViewProps) {
           </Button>
         }
       >
-        <SimpleRows icon={CreditCard} rows={data.payments.map((payment) => [formatMoney(payment.amount), `${labelStatus(payment.targetType)}: ${payment.targetId}`, dateShort(payment.createdAt)])} empty="لا توجد دفعات بعد." />
+        <SimpleRows icon={CreditCard} rows={data.payments.map((payment) => [formatMoney(payment.amount), `${labelStatus(payment.targetType)}: ${paymentTargetLabel(payment, data)}`, dateShort(payment.date || payment.createdAt)])} empty="لا توجد دفعات بعد." />
       </Panel>
     </section>
   )
@@ -1252,7 +1254,7 @@ function AccountingView({ data, token, mutate, saving }: ViewProps) {
                 key={key}
                 type="button"
                 onClick={() => setTab(key as typeof tab)}
-                className={cx('rounded-lg border px-3 py-2 text-sm font-semibold transition', tab === key ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700')}
+                className={cx('rounded-lg border px-3 py-2 text-sm font-semibold transition', tab === key ? 'border-cyan-700 bg-cyan-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-300 hover:text-cyan-800')}
               >
                 {label}
               </button>
