@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import DashboardPageContent from '@/features/dashboard/components/DashboardPageContent'
 
 export default function DashboardPage() {
-  return <InventoryApp view="dashboard" />
+  return <DashboardPageContent />
 }

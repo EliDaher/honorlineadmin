@@ -1,0 +1,10 @@
+import { CircleDollarSign } from 'lucide-react'
+import type { Contact, JournalEntry } from '@/app/_lib/types'
+import { dateShort, formatMoney } from '@/app/_lib/format'
+import { contactName, labelAccountName, labelMemo, labelStatus } from '@/features/shared/constants/labels'
+import { EmptyState, StatusPill, TableShell, tableClass, tdClass, thClass } from '@/app/_components/ui'
+
+export function JournalLedgerView({ entries, contacts }: { entries: JournalEntry[]; contacts: Contact[] }) {
+  if (entries.length === 0) return <EmptyState title="لا توجد قيود محاسبية بعد." description="رحّل البيانات أو سجل بيعاً أو دفعة أو مصروفاً أو شراء." icon={CircleDollarSign} />
+  return <div className="space-y-3">{entries.map((entry) => <div key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950">{entry.memo ? labelMemo(entry.memo) : `${labelStatus(entry.sourceType)} ${labelStatus(entry.sourceAction)}`}</p><p className="text-xs text-slate-500">{dateShort(entry.date)} - <span dir="ltr" className="inline-block">{labelStatus(entry.sourceType)}:{entry.sourceId}</span> {entry.partyId ? `- ${contactName(entry.partyId, contacts)}` : ''}</p></div><StatusPill tone={entry.balanced ? 'success' : 'danger'}>{entry.balanced ? 'متوازن' : 'غير متوازن'}</StatusPill></div><TableShell><table className={tableClass()}><thead><tr><th className={thClass()}>الحساب</th><th className={thClass()}>الوصف</th><th className={thClass()}>مدين</th><th className={thClass()}>دائن</th></tr></thead><tbody>{entry.lines.map((line, index) => <tr key={`${entry.id}-${index}`}><td className={tdClass('font-semibold text-slate-950')}>{line.accountCode} {labelAccountName(line.accountName)}</td><td className={tdClass()}>{line.description || '-'}</td><td className={tdClass()}>{line.debit > 0 ? formatMoney(line.debit, line.currency) : '-'}</td><td className={tdClass()}>{line.credit > 0 ? formatMoney(line.credit, line.currency) : '-'}</td></tr>)}</tbody></table></TableShell></div>)}</div>
+}

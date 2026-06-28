@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import CablesPageContent from '@/features/cables/components/CablesPageContent'
 
 export default function CablesPage() {
-  return <InventoryApp view="cables" />
+  return <CablesPageContent />
 }

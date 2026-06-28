@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import WorkersPageContent from '@/features/parties/components/WorkersPageContent'
 
 export default function WorkersPage() {
-  return <InventoryApp view="workers" />
+  return <WorkersPageContent />
 }

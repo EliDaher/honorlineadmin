@@ -25,7 +25,7 @@ const emptyServerForm = {
 type ServersViewProps = {
   data: InventoryData
   token: string
-  mutate: (action: string, run: () => Promise<void>) => Promise<void>
+  mutate: (action: string, run: () => Promise<unknown>) => Promise<void>
   saving: string
 }
 

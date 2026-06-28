@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import ProductsPageContent from '@/features/products/components/ProductsPageContent'
 
 export default function ProductsPage() {
-  return <InventoryApp view="products" />
+  return <ProductsPageContent />
 }

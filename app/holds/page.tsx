@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import HoldsPageContent from '@/features/holds/components/HoldsPageContent'
 
 export default function HoldsPage() {
-  return <InventoryApp view="holds" />
+  return <HoldsPageContent />
 }

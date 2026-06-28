@@ -1,5 +1,5 @@
-import { InventoryApp } from '../_components/inventory-app'
+import CategoriesPageContent from '@/features/categories/components/CategoriesPageContent'
 
 export default function CategoriesPage() {
-  return <InventoryApp view="categories" />
+  return <CategoriesPageContent />
 }

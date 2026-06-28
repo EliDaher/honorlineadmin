@@ -1,6 +1,6 @@
-import { InventoryApp } from '../../_components/inventory-app'
+import CustomerDetailPageContent from '@/features/parties/components/CustomerDetailPageContent'
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  return <InventoryApp view="customers" customerId={id} />
+  return <CustomerDetailPageContent customerId={id} />
 }

@@ -8,6 +8,7 @@ export const emptyData: InventoryData = {
   workers: [],
   customers: [],
   holds: [],
+  holdReceipts: [],
   sales: [],
   payments: [],
   accountingDashboard: null,
