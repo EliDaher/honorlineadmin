@@ -1,6 +1,7 @@
 'use client'
 
-import { RefreshCw, Save, Server, Trash2 } from 'lucide-react'
+import { Network, RefreshCw, Save, Server, Trash2 } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { apiRequest, authHeaders } from '../../_lib/api'
 import { dateShort } from '../../_lib/format'
@@ -137,13 +138,22 @@ export function ServersView({ data, token, mutate, saving }: ServersViewProps) {
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-base font-semibold text-slate-950">{server.name}</p>
+                        <Link href={`/servers/${server.id}`} className="truncate text-base font-semibold text-slate-950 transition hover:text-cyan-700">
+                          {server.name}
+                        </Link>
                         <StatusPill tone={server.hasPassword ? 'success' : 'warning'}>{server.hasPassword ? 'بيانات الدخول محفوظة' : 'بدون كلمة مرور'}</StatusPill>
                       </div>
                       <p className="mt-1 truncate text-sm text-slate-500" dir="ltr">{server.apiBaseUrl}</p>
                       <p className="mt-1 text-sm text-slate-500">{server.notes || 'لا توجد ملاحظات'}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/servers/${server.id}`}
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition duration-150 hover:border-cyan-300 hover:bg-cyan-50/60 hover:text-cyan-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan-100 active:scale-[0.98]"
+                      >
+                        <Network className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">التفاصيل</span>
+                      </Link>
                       <Button type="button" variant="secondary" icon={RefreshCw} loading={actionLoading === `resource-${server.id}`} onClick={() => runServerAction(`resource-${server.id}`, async () => {
                         const result = await apiRequest<ApiResponse<ServerApiResult>>(`/api/servers/${server.id}/resource`, { headers: authHeaders(token) })
                         setResourceResults({ ...resourceResults, [server.id]: result.data })
