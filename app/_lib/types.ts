@@ -63,9 +63,13 @@ export type Hold = {
   remainingQuantity: number
   unitPrice: number
   currency: Currency
+  grossAmount?: number
+  discountAmount: number
   paidAmount: number
   amountDue: number
   balanceDue: number
+  grossAmountMoney?: Money
+  discountAmountMoney?: Money
   amountDueMoney?: Money
   balanceDueMoney?: Money
   status: 'active' | 'awaiting_payment' | 'settled'

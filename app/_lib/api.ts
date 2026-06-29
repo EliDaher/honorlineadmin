@@ -15,6 +15,9 @@ type ApiErrorBody = {
 }
 
 const apiErrorMessages: Record<string, string> = {
+  DISCOUNT_EXCEEDS_TOTAL: 'الحسم أكبر من إجمالي البيع.',
+  MIXED_CURRENCY_RECEIPT_DISCOUNT: 'لا يمكن تطبيق حسم واحد على وصل فيه أكثر من عملة.',
+  HOLD_RECEIPT_NO_REMAINING_QUANTITY: 'لا توجد كميات متبقية للبيع في هذا الوصل.',
   INSUFFICIENT_STOCK: 'الكمية المتوفرة في المخزون غير كافية.',
   INVALID_HOLD_QUANTITY: 'الكمية أكبر من الكمية المتبقية في الأمانة.',
   PAYMENT_EXCEEDS_BALANCE: 'المبلغ أكبر من الرصيد المستحق.',

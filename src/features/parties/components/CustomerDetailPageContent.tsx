@@ -38,7 +38,7 @@ function CustomerFinancialDetail({
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [invoice, setInvoice] = useState({ amount: '0', currency: 'USD' as Currency, date: todayInputValue(), note: '' })
   const [payment, setPayment] = useState({ amount: '0', currency: 'USD' as Currency, date: todayInputValue(), note: '' })
-  const statement = customer.ledger.statement
+  const statement = customer.ledger.statement ?? []
 
   return (
     <section className="space-y-5">

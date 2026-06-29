@@ -14,6 +14,7 @@ import {
   recordHoldPayment,
   returnHold,
   sellHold,
+  sellHoldReceipt,
   updateHold,
   type CreateHoldInput,
   type CreateHoldReceiptInput,
@@ -25,10 +26,12 @@ type ReceiptItemForm = { key: string; productId: string; quantity: string; unitP
 type ReceiptForm = { contactId: string; finalCustomerId: string; note: string; items: ReceiptItemForm[] }
 type HoldAction = 'sell' | 'pay' | 'return'
 type ActionState = { type: HoldAction; hold: Hold } | null
-type ActionForm = { quantity: string; amount: string; finalCustomerId: string; note: string }
+type ActionForm = { quantity: string; amount: string; discountPerUnit: string; finalCustomerId: string; note: string }
+type ReceiptSellForm = { finalCustomerId: string; discountAmount: string; note: string }
 
 const initialEditForm: HoldForm = { productId: '', contactId: '', finalCustomerId: '', quantity: '1', unitPrice: '0', currency: 'USD', note: '' }
-const initialActionForm: ActionForm = { quantity: '1', amount: '', finalCustomerId: '', note: '' }
+const initialActionForm: ActionForm = { quantity: '1', amount: '', discountPerUnit: '0', finalCustomerId: '', note: '' }
+const initialReceiptSellForm: ReceiptSellForm = { finalCustomerId: '', discountAmount: '0', note: '' }
 
 function newReceiptItem(): ReceiptItemForm {
   return { key: `item-${Date.now()}-${Math.random().toString(36).slice(2)}`, productId: '', quantity: '1', unitPrice: '0', currency: 'USD', note: '' }
@@ -66,6 +69,50 @@ function actionSavingKey(type: HoldAction, holdId: string) {
   return `return-${holdId}`
 }
 
+function roundAmount(amount: number) {
+  return Number(amount.toFixed(2))
+}
+
+function holdDiscountAmount(hold: Hold) {
+  return roundAmount(hold.discountAmount ?? 0)
+}
+
+function holdGrossAmount(hold: Hold) {
+  return roundAmount(hold.grossAmount ?? hold.quantitySold * hold.unitPrice)
+}
+
+function receiptRemainingRows(receipt: HoldReceipt) {
+  return receipt.items
+    .map((hold) => ({
+      hold,
+      quantity: hold.remainingQuantity,
+      total: roundAmount(hold.remainingQuantity * hold.unitPrice)
+    }))
+    .filter((row) => row.quantity > 0)
+}
+
+function receiptRemainingCurrencies(receipt: HoldReceipt) {
+  return Array.from(new Set(receiptRemainingRows(receipt).map((row) => row.hold.currency)))
+}
+
+function receiptRemainingTotal(receipt: HoldReceipt) {
+  return roundAmount(receiptRemainingRows(receipt).reduce((sum, row) => sum + row.total, 0))
+}
+
+function receiptRemainingBalances(receipt: HoldReceipt) {
+  return receiptRemainingRows(receipt).reduce<Record<Currency, number>>(
+    (balances, row) => ({
+      ...balances,
+      [row.hold.currency]: roundAmount(balances[row.hold.currency] + row.total)
+    }),
+    { USD: 0, SYP: 0 }
+  )
+}
+
+function receiptDiscountCurrency(receipt: HoldReceipt): Currency {
+  return receiptRemainingCurrencies(receipt)[0] ?? 'USD'
+}
+
 export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps) {
   const customers = data.contacts.filter((contact) => contact.type === 'customer')
   const responsible = data.contacts.filter((contact) => contact.type !== 'customer')
@@ -75,6 +122,8 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
   const [editingId, setEditingId] = useState('')
   const [actionState, setActionState] = useState<ActionState>(null)
   const [actionForm, setActionForm] = useState(initialActionForm)
+  const [receiptSellState, setReceiptSellState] = useState<HoldReceipt | null>(null)
+  const [receiptSellForm, setReceiptSellForm] = useState(initialReceiptSellForm)
   const [expandedReceipts, setExpandedReceipts] = useState<Record<string, boolean>>({})
   const editingHold = editingId ? data.holds.find((hold) => hold.id === editingId) : null
   const editingHasActivity = editingHold ? hasHoldActivity(editingHold) : false
@@ -132,6 +181,7 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
     setActionForm({
       quantity: hold.remainingQuantity > 0 ? '1' : '',
       amount: type === 'pay' && hold.balanceDue > 0 ? String(hold.balanceDue) : '',
+      discountPerUnit: '0',
       finalCustomerId: hold.finalCustomerId || '',
       note: ''
     })
@@ -140,6 +190,20 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
   function closeAction() {
     setActionState(null)
     setActionForm(initialActionForm)
+  }
+
+  function openReceiptSell(receipt: HoldReceipt) {
+    setReceiptSellState(receipt)
+    setReceiptSellForm({
+      finalCustomerId: receipt.finalCustomerId || '',
+      discountAmount: '0',
+      note: ''
+    })
+  }
+
+  function closeReceiptSell() {
+    setReceiptSellState(null)
+    setReceiptSellForm(initialReceiptSellForm)
   }
 
   function buildReceiptInput(): CreateHoldReceiptInput {
@@ -202,9 +266,12 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
     await mutate(actionSavingKey(type, hold.id), async () => {
       if (type === 'sell') {
         const quantity = Number(actionForm.quantity)
+        const discountPerUnit = Number(actionForm.discountPerUnit || 0)
         if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('أدخل كمية بيع صحيحة.')
         if (quantity > hold.remainingQuantity) throw new Error('الكمية أكبر من الكمية المتبقية في الأمانة.')
-        await sellHold(token, hold.id, quantity, actionForm.finalCustomerId, actionForm.note)
+        if (!Number.isFinite(discountPerUnit) || discountPerUnit < 0) throw new Error('أدخل حسمًا صحيحًا.')
+        if (discountPerUnit > hold.unitPrice) throw new Error('الحسم أكبر من سعر الوحدة.')
+        await sellHold(token, hold.id, { quantity, discountPerUnit, finalCustomerId: actionForm.finalCustomerId, note: actionForm.note })
       }
 
       if (type === 'pay') {
@@ -222,6 +289,31 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
       }
 
       closeAction()
+    })
+  }
+
+  async function submitReceiptSell(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!receiptSellState) return
+
+    const receipt = receiptSellState
+    const remainingRows = receiptRemainingRows(receipt)
+    const remainingTotal = receiptRemainingTotal(receipt)
+    const currencies = receiptRemainingCurrencies(receipt)
+    const discountAmount = Number(receiptSellForm.discountAmount || 0)
+
+    if (remainingRows.length === 0) throw new Error('لا توجد كميات متبقية للبيع في هذا الوصل.')
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) throw new Error('أدخل حسمًا صحيحًا.')
+    if (discountAmount > remainingTotal) throw new Error('الحسم أكبر من إجمالي الوصل.')
+    if (discountAmount > 0 && currencies.length > 1) throw new Error('لا يمكن تطبيق حسم واحد على وصل فيه أكثر من عملة.')
+
+    await mutate(`sell-receipt-${receipt.id}`, async () => {
+      await sellHoldReceipt(token, receipt.id, {
+        finalCustomerId: receiptSellForm.finalCustomerId,
+        discountAmount,
+        note: receiptSellForm.note
+      })
+      closeReceiptSell()
     })
   }
 
@@ -269,6 +361,7 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
                 <tr key={hold.id}>
                   <td className={tdClass('min-w-56')}>
                     <p className="font-semibold text-slate-950">{productName(hold.productId, data.products)}</p>
+                    {holdDiscountAmount(hold) > 0 ? <p className="text-xs text-emerald-700">حسم {formatMoney(holdDiscountAmount(hold), hold.currency)} من {formatMoney(holdGrossAmount(hold), hold.currency)}</p> : null}
                     <p className="text-xs text-slate-500">{formatMoney(hold.unitPrice, hold.currency)} للوحدة</p>
                   </td>
                   {showParties ? <td className={tdClass('min-w-40')}>{contactName(hold.contactId, data.contacts)}</td> : null}
@@ -298,6 +391,20 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
   }
 
   const actionIcon = actionState?.type === 'pay' ? HandCoins : actionState?.type === 'return' ? RotateCcw : ShoppingCart
+  const actionQuantity = Number(actionForm.quantity || 0)
+  const actionDiscountPerUnit = Number(actionForm.discountPerUnit || 0)
+  const actionGrossAmount = actionState?.type === 'sell' ? roundAmount((Number.isFinite(actionQuantity) ? actionQuantity : 0) * actionState.hold.unitPrice) : 0
+  const actionDiscountAmount = actionState?.type === 'sell' ? roundAmount((Number.isFinite(actionQuantity) ? actionQuantity : 0) * (Number.isFinite(actionDiscountPerUnit) ? actionDiscountPerUnit : 0)) : 0
+  const actionNetAmount = Math.max(0, roundAmount(actionGrossAmount - actionDiscountAmount))
+  const receiptSellRemainingTotal = receiptSellState ? receiptRemainingTotal(receiptSellState) : 0
+  const receiptSellDiscount = Number(receiptSellForm.discountAmount || 0)
+  const receiptSellNetTotal = Math.max(0, roundAmount(receiptSellRemainingTotal - (Number.isFinite(receiptSellDiscount) ? receiptSellDiscount : 0)))
+  const receiptSellCurrencies = receiptSellState ? receiptRemainingCurrencies(receiptSellState) : []
+  const receiptSellBalances = receiptSellState ? receiptRemainingBalances(receiptSellState) : { USD: 0, SYP: 0 }
+  const receiptSellCurrency = receiptSellState ? receiptDiscountCurrency(receiptSellState) : 'USD'
+  const receiptSellTotalText = receiptSellCurrencies.length > 1 ? formatBalances(receiptSellBalances) : formatMoney(receiptSellRemainingTotal, receiptSellCurrency)
+  const receiptSellDiscountText = receiptSellCurrencies.length > 1 ? formatMoney(0, receiptSellCurrency) : formatMoney(Number.isFinite(receiptSellDiscount) ? receiptSellDiscount : 0, receiptSellCurrency)
+  const receiptSellNetText = receiptSellCurrencies.length > 1 ? formatBalances(receiptSellBalances) : formatMoney(receiptSellNetTotal, receiptSellCurrency)
   const hasAnyHolds = data.holdReceipts.length > 0 || standaloneHolds.length > 0
 
   return (
@@ -388,6 +495,18 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
               </Field>
             )}
             {actionState.type === 'sell' ? (
+              <>
+                <Field label="حسم الوحدة">
+                  <input type="number" min="0" max={actionState.hold.unitPrice} step="0.01" value={actionForm.discountPerUnit} onChange={(event) => setActionForm({ ...actionForm, discountPerUnit: event.target.value })} className={inputClass()} />
+                </Field>
+                <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 sm:grid-cols-3">
+                  <span>الإجمالي {formatMoney(actionGrossAmount, actionState.hold.currency)}</span>
+                  <span>الحسم {formatMoney(actionDiscountAmount, actionState.hold.currency)}</span>
+                  <span className="font-semibold text-slate-950">الصافي {formatMoney(actionNetAmount, actionState.hold.currency)}</span>
+                </div>
+              </>
+            ) : null}
+            {actionState.type === 'sell' ? (
               <Field label="الزبون النهائي">
                 <select value={actionForm.finalCustomerId} onChange={(event) => setActionForm({ ...actionForm, finalCustomerId: event.target.value })} className={inputClass()}>
                   <option value="">بدون</option>
@@ -401,6 +520,30 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
         ) : null}
       </Modal>
 
+      <Modal open={Boolean(receiptSellState)} onClose={closeReceiptSell} title="بيع الوصل" description={receiptSellState?.receiptNumber}>
+        {receiptSellState ? (
+          <form className="space-y-4" onSubmit={submitReceiptSell}>
+            <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 sm:grid-cols-3">
+              <span>الإجمالي {receiptSellTotalText}</span>
+              <span>الحسم {receiptSellDiscountText}</span>
+              <span className="font-semibold text-slate-950">الصافي {receiptSellNetText}</span>
+            </div>
+            {receiptSellCurrencies.length > 1 ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">لا يمكن تطبيق حسم واحد على وصل فيه أكثر من عملة.</p> : null}
+            <Field label="الحسم على الوصل">
+              <input type="number" min="0" max={receiptSellRemainingTotal} step="0.01" disabled={receiptSellCurrencies.length > 1} value={receiptSellForm.discountAmount} onChange={(event) => setReceiptSellForm({ ...receiptSellForm, discountAmount: event.target.value })} className={inputClass()} />
+            </Field>
+            <Field label="الزبون النهائي">
+              <select value={receiptSellForm.finalCustomerId} onChange={(event) => setReceiptSellForm({ ...receiptSellForm, finalCustomerId: event.target.value })} className={inputClass()}>
+                <option value="">بدون</option>
+                {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
+              </select>
+            </Field>
+            <Field label="ملاحظات"><textarea value={receiptSellForm.note} onChange={(event) => setReceiptSellForm({ ...receiptSellForm, note: event.target.value })} className={inputClass()} rows={3} /></Field>
+            <Button loading={saving === `sell-receipt-${receiptSellState.id}`} icon={ShoppingCart}>بيع الوصل</Button>
+          </form>
+        ) : null}
+      </Modal>
+
       <Panel title="الأمانات" description="وصول الأمانات متعددة البنود وإجراءات البيع والدفع والإرجاع لكل بند." actions={<Button type="button" icon={ReceiptText} onClick={openCreate}>إنشاء وصل أمانة</Button>}>
         {!hasAnyHolds ? (
           <EmptyState title="لا توجد أمانات بعد." description="أنشئ أول وصل أمانة لإضافة منتج أو أكثر إلى جهة مسؤولة." icon={Archive} />
@@ -409,6 +552,7 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
             {data.holdReceipts.map((receipt) => {
               const expanded = expandedReceipts[receipt.id] ?? true
               const canDeleteReceipt = receipt.items.every((hold) => !hasHoldActivity(hold))
+              const canSellReceipt = receipt.remainingQuantity > 0
 
               return (
                 <section key={receipt.id} className="overflow-hidden rounded-lg border border-slate-200">
@@ -423,6 +567,7 @@ export function HoldsView({ data, token, mutate, saving }: InventoryAppViewProps
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" variant="secondary" icon={ShoppingCart} disabled={!canSellReceipt} loading={saving === `sell-receipt-${receipt.id}`} onClick={() => openReceiptSell(receipt)}>بيع الوصل</Button>
                       <Button type="button" variant="secondary" icon={expanded ? ChevronDown : ChevronLeft} onClick={() => toggleReceipt(receipt.id)}>{expanded ? 'إخفاء البنود' : 'عرض البنود'}</Button>
                       <Button type="button" variant="danger" icon={Trash2} disabled={!canDeleteReceipt} loading={saving === `delete-receipt-${receipt.id}`} onClick={() => removeReceipt(receipt)}>حذف الوصل</Button>
                     </div>
