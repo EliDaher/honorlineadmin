@@ -320,6 +320,35 @@ export type ServerApiResult = {
   }
 }
 
+export type ServerNeighbor = {
+  '.id': string
+  address?: string
+  address4?: string
+  address6?: string
+  age?: string
+  board?: string
+  'discovered-by'?: string
+  identity?: string
+  interface?: string
+  'interface-name'?: string
+  ipv6?: string
+  'mac-address'?: string
+  platform?: string
+  'software-id'?: string
+  'system-caps'?: string
+  'system-caps-enabled'?: string
+  'system-description'?: string
+  unpack?: string
+  uptime?: string
+  version?: string
+  [key: string]: string | undefined
+}
+
+export type ServerNeighborsResult = {
+  fetchedAt: string
+  result: ServerNeighbor[]
+}
+
 export type PartyLedger = {
   activeHolds: Hold[]
   holds: Hold[]
