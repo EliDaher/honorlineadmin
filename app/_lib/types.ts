@@ -8,7 +8,23 @@ export type Money = {
 export type User = {
   id: string
   username: string
-  role: 'admin' | 'employee' | 'user'
+  role: 'admin' | 'worker' | 'employee' | 'user'
+  contactId?: string
+  isActive?: boolean
+  hasPassword?: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type AppUser = {
+  id: string
+  username: string
+  role: 'admin' | 'worker'
+  contactId?: string
+  isActive: boolean
+  hasPassword: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export type Category = {
@@ -93,6 +109,33 @@ export type HoldReceipt = {
   note: string
   createdAt: string
   updatedAt: string
+}
+
+export type HoldRequestItem = {
+  productId: string
+  quantity: number
+  unitPrice: number
+  currency: Currency
+  note: string
+}
+
+export type HoldRequest = {
+  id: string
+  workerContactId: string
+  requestedByUserId: string
+  requestedByUsername: string
+  items: HoldRequestItem[]
+  status: 'pending' | 'approved' | 'rejected' | 'canceled'
+  note: string
+  adminNote: string
+  holdReceiptId?: string
+  createdAt: string
+  updatedAt: string
+  approvedAt?: string
+  approvedBy?: string
+  rejectedAt?: string
+  rejectedBy?: string
+  canceledAt?: string
 }
 
 export type Sale = {
@@ -362,6 +405,7 @@ export type PartyLedger = {
   debtInvoices: CustomerDebtInvoice[]
   statement: CustomerStatementEntry[]
   balancesByCurrency: Record<Currency, number>
+  custodyValueByCurrency: Record<Currency, number>
   itemsInCustody: number
   soldQuantity: number
   collectedByCurrency: Record<Currency, number>
@@ -370,6 +414,8 @@ export type PartyLedger = {
 export type WorkerDetail = Contact & {
   detail: PartyLedger
 }
+
+export type WorkerProduct = Pick<Product, 'id' | 'name' | 'sku' | 'category' | 'categoryId' | 'quantityOnHand' | 'salePrice' | 'currency' | 'notes' | 'createdAt' | 'updatedAt'>
 
 export type CustomerDetail = Contact & {
   ledger: PartyLedger
@@ -399,7 +445,9 @@ export type ViewKey =
   | 'contacts'
   | 'workers'
   | 'customers'
+  | 'holdRequests'
   | 'holds'
+  | 'myCustody'
   | 'sales'
   | 'payments'
   | 'accounting'
@@ -411,8 +459,12 @@ export type InventoryData = {
   products: Product[]
   categories: Category[]
   contacts: Contact[]
+  users: AppUser[]
   workers: WorkerDetail[]
+  currentWorker: WorkerDetail | null
+  workerProducts: WorkerProduct[]
   customers: CustomerDetail[]
+  holdRequests: HoldRequest[]
   holds: Hold[]
   holdReceipts: HoldReceipt[]
   sales: Sale[]

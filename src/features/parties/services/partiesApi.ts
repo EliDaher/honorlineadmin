@@ -1,8 +1,13 @@
 import { apiRequest, authHeaders } from '@/app/_lib/api'
 import type { ApiResponse, CustomerDetail, InventoryData, WorkerDetail } from '@/app/_lib/types'
+import { getUsers } from '@/features/users/services/usersApi'
 
-export function getWorkersPageData(token: string): Promise<Pick<InventoryData, 'workers'>> {
-  return apiRequest<ApiResponse<WorkerDetail[]>>('/api/workers', { headers: authHeaders(token) }).then((response) => ({ workers: response.data }))
+export async function getWorkersPageData(token: string): Promise<Pick<InventoryData, 'workers' | 'users'>> {
+  const [workers, users] = await Promise.all([
+    apiRequest<ApiResponse<WorkerDetail[]>>('/api/workers', { headers: authHeaders(token) }),
+    getUsers(token)
+  ])
+  return { workers: workers.data, users: users.data }
 }
 
 export function getCustomersPageData(token: string): Promise<Pick<InventoryData, 'customers'>> {
