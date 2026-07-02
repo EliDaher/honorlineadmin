@@ -9,6 +9,8 @@ export type CreateHoldReceiptInput = {
   note: string
   items: Array<Pick<CreateHoldInput, 'productId' | 'quantity' | 'unitPrice' | 'currency' | 'note'>>
 }
+export type SellHoldInput = { quantity: number; finalCustomerId: string; note: string; discountPerUnit: number }
+export type SellHoldReceiptInput = { finalCustomerId: string; note: string; discountAmount: number }
 
 export async function getHoldsPageData(token: string): Promise<Pick<InventoryData, 'holds' | 'holdReceipts' | 'products' | 'contacts'>> {
   const headers = authHeaders(token)
@@ -41,8 +43,12 @@ export function deleteHold(token: string, holdId: string) {
   return apiRequest<ApiResponse<{ id: string }>>(`/api/holds/${holdId}`, { method: 'DELETE', headers: authHeaders(token) })
 }
 
-export function sellHold(token: string, holdId: string, quantity: number, finalCustomerId: string, note = '') {
-  return apiRequest<ApiResponse<Hold>>(`/api/holds/${holdId}/sell`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ quantity, finalCustomerId, note }) })
+export function sellHold(token: string, holdId: string, input: SellHoldInput) {
+  return apiRequest<ApiResponse<Hold>>(`/api/holds/${holdId}/sell`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify(input) })
+}
+
+export function sellHoldReceipt(token: string, receiptId: string, input: SellHoldReceiptInput) {
+  return apiRequest<ApiResponse<HoldReceipt>>(`/api/hold-receipts/${receiptId}/sell`, { method: 'POST', headers: authHeaders(token), body: JSON.stringify(input) })
 }
 
 export function recordHoldPayment(token: string, holdId: string, amount: number, currency: Currency, note = '') {

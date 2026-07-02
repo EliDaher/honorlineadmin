@@ -18,13 +18,18 @@ type AppShellProps = {
 }
 
 export function AppShell({ view, user, loading, error, success, onRefresh, onLogout, children }: AppShellProps) {
+  const visibleNavigationItems =
+    user?.role === 'worker'
+      ? navigationItems.filter((item) => item.key === 'myCustody')
+      : navigationItems.filter((item) => item.key !== 'myCustody')
+
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
       <div className="flex min-h-screen flex-col lg:flex-row">
         <aside className="border-b border-slate-800 bg-slate-950 px-4 py-4 text-white lg:sticky lg:top-0 lg:h-screen lg:w-68 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-3"><Image src="/branding/honorline-logo.png" alt="HonorLine" width={56} height={56} priority className="h-11 w-11 rounded-lg object-cover ring-1 ring-white/10" /><div className="min-w-0"><p className="truncate text-base font-semibold">HonorLine</p><p className="text-xs text-slate-400">إدارة المخزون والمحاسبة</p></div></div>
           <nav className="mt-4 flex gap-1 overflow-x-auto pb-1 lg:mt-7 lg:flex-col lg:overflow-visible lg:pb-0" aria-label="القائمة الرئيسية">
-            {navigationItems.map((item) => {
+            {visibleNavigationItems.map((item) => {
               const Icon = item.icon
               return <Link key={item.key} href={item.href} className={cx('inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition', view === item.key ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white')}><Icon className="h-4 w-4 shrink-0" aria-hidden="true" /><span>{item.label}</span></Link>
             })}

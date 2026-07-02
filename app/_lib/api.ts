@@ -14,6 +14,16 @@ type ApiErrorBody = {
 }
 
 const apiErrorMessages: Record<string, string> = {
+  USERNAME_EXISTS: 'Username is already used.',
+  USER_NOT_FOUND: 'User was not found.',
+  WORKER_NOT_FOUND: 'Worker was not found.',
+  WORKER_CONTACT_REQUIRED: 'Worker account must be linked to a worker contact.',
+  WORKER_ACCOUNT_NOT_LINKED: 'Worker account is not linked to a worker contact.',
+  HOLD_REQUEST_NOT_FOUND: 'Hold request was not found.',
+  HOLD_REQUEST_NOT_PENDING: 'Hold request is no longer pending.',
+  DISCOUNT_EXCEEDS_TOTAL: 'الحسم أكبر من إجمالي البيع.',
+  MIXED_CURRENCY_RECEIPT_DISCOUNT: 'لا يمكن تطبيق حسم واحد على وصل فيه أكثر من عملة.',
+  HOLD_RECEIPT_NO_REMAINING_QUANTITY: 'لا توجد كميات متبقية للبيع في هذا الوصل.',
   INSUFFICIENT_STOCK: 'الكمية المتوفرة في المخزون غير كافية.',
   INVALID_HOLD_QUANTITY: 'الكمية أكبر من الكمية المتبقية في الأمانة.',
   PAYMENT_EXCEEDS_BALANCE: 'المبلغ أكبر من الرصيد المستحق.',
@@ -62,5 +72,11 @@ export async function login(username: string, password: string) {
   return apiRequest<ApiResponse<{ token: string; user: User }>>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password })
+  })
+}
+
+export async function getCurrentUser(token: string) {
+  return apiRequest<ApiResponse<User>>('/api/users/me', {
+    headers: authHeaders(token)
   })
 }

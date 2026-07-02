@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { TOKEN_STORAGE_KEY } from '@/app/_lib/api'
+import { getCurrentUser, TOKEN_STORAGE_KEY } from '@/app/_lib/api'
 import type { User } from '@/app/_lib/types'
 import { emptyData } from '@/features/shared/constants/inventory'
 import type { ViewDataLoader } from '../types'
@@ -33,7 +33,16 @@ export function useInventoryPage(loadViewData: ViewDataLoader) {
 
   useEffect(() => {
     const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (savedToken) setToken(savedToken)
+    if (savedToken) {
+      setToken(savedToken)
+      getCurrentUser(savedToken)
+        .then((response) => setUser(response.data))
+        .catch(() => {
+          localStorage.removeItem(TOKEN_STORAGE_KEY)
+          setToken('')
+          setUser(null)
+        })
+    }
     setReady(true)
   }, [])
 
