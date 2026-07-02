@@ -9,6 +9,11 @@ import { getServerNeighbors } from '../services/serversApi'
 
 type ViewMode = 'zones' | 'table'
 
+type IpRange = {
+  start: number
+  end: number
+}
+
 const neighborColumns = [
   { key: 'identity', label: 'الهوية' },
   { key: 'address', label: 'العنوان' },
@@ -41,13 +46,67 @@ function matchesSearch(neighbor: ServerNeighbor, query: string) {
   return Object.values(neighbor).some((value) => String(value ?? '').toLowerCase().includes(query))
 }
 
+function parseIpv4(value: string) {
+  const parts = value.trim().split('.')
+  if (parts.length !== 4) return null
+
+  const octets: number[] = []
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return null
+    const octet = Number(part)
+    if (octet < 0 || octet > 255) return null
+    octets.push(octet)
+  }
+
+  return octets.reduce((result, octet) => (result << 8) + octet, 0) >>> 0
+}
+
+function parseCidrRange(value: string): IpRange | null {
+  const [address, prefixText] = value.split('/')
+  if (!address || prefixText === undefined || !/^\d{1,2}$/.test(prefixText)) return null
+
+  const ip = parseIpv4(address)
+  const prefix = Number(prefixText)
+  if (ip === null || prefix < 0 || prefix > 32) return null
+
+  const mask = prefix === 0 ? 0 : (0xffffffff << (32 - prefix)) >>> 0
+  const start = (ip & mask) >>> 0
+  const size = 2 ** (32 - prefix)
+  return { start, end: (start + size - 1) >>> 0 }
+}
+
+function parseExplicitRange(value: string): IpRange | null {
+  const [startText, endText] = value.split('-').map((part) => part.trim())
+  if (!startText || !endText) return null
+
+  const start = parseIpv4(startText)
+  const end = parseIpv4(endText)
+  if (start === null || end === null || start > end) return null
+  return { start, end }
+}
+
+function parseIpRange(value: string): IpRange | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.includes('/')) return parseCidrRange(trimmed)
+  if (trimmed.includes('-')) return parseExplicitRange(trimmed)
+
+  const singleIp = parseIpv4(trimmed)
+  return singleIp === null ? null : { start: singleIp, end: singleIp }
+}
+
+function isAddressInRange(address: string, range: IpRange) {
+  const ip = parseIpv4(address)
+  return ip !== null && ip >= range.start && ip <= range.end
+}
+
 function neighborKey(neighbor: ServerNeighbor, index: number) {
   return neighbor['.id'] || `${neighborAddress(neighbor)}-${neighbor['mac-address'] ?? 'neighbor'}-${index}`
 }
 
 function NeighborCards({ neighbors }: { neighbors: ServerNeighbor[] }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4">
       {neighbors.map((neighbor, index) => {
         const href = neighborHref(neighbor)
         const title = neighbor.identity || neighborAddress(neighbor) || neighbor['mac-address'] || 'Neighbor'
@@ -140,6 +199,8 @@ export function ServerDetailView({ server, token }: { server: ManagedServer; tok
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedInterface, setSelectedInterface] = useState('')
+  const [ipRangeText, setIpRangeText] = useState('')
   const [mode, setMode] = useState<ViewMode>('zones')
 
   const loadNeighbors = useCallback(async () => {
@@ -158,10 +219,32 @@ export function ServerDetailView({ server, token }: { server: ManagedServer; tok
     void loadNeighbors()
   }, [loadNeighbors])
 
+  const allNeighbors = useMemo(() => neighborsResult?.result ?? [], [neighborsResult])
+
+  const interfaceOptions = useMemo(() => {
+    return Array.from(new Set(allNeighbors.map((neighbor) => interfaceName(neighbor)))).sort((a, b) => a.localeCompare(b))
+  }, [allNeighbors])
+
+  const parsedIpRange = useMemo(() => {
+    const trimmed = ipRangeText.trim()
+    if (!trimmed) return { range: null, error: '' }
+
+    const range = parseIpRange(trimmed)
+    return range
+      ? { range, error: '' }
+      : { range: null, error: 'صيغة نطاق IP غير صحيحة. استخدم 172.23.9.0/24 أو 172.23.9.1-172.23.9.254' }
+  }, [ipRangeText])
+
   const filteredNeighbors = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return (neighborsResult?.result ?? []).filter((neighbor) => matchesSearch(neighbor, query))
-  }, [neighborsResult, search])
+    return allNeighbors.filter((neighbor) => {
+      const address = neighbor.address || neighbor.address4 || ''
+      const matchesInterface = !selectedInterface || interfaceName(neighbor) === selectedInterface
+      const matchesRange = !parsedIpRange.range || isAddressInRange(address, parsedIpRange.range)
+
+      return matchesSearch(neighbor, query) && matchesInterface && matchesRange
+    })
+  }, [allNeighbors, parsedIpRange.range, search, selectedInterface])
 
   const groupedNeighbors = useMemo(() => {
     const groups = new Map<string, ServerNeighbor[]>()
@@ -176,25 +259,44 @@ export function ServerDetailView({ server, token }: { server: ManagedServer; tok
 
   return (
     <section className="space-y-5">
-      <Panel
-        title={server.name}
-        description="تفاصيل السيرفر والجيران المكتشفين من MikroTik REST."
-        actions={
-          <Button type="button" icon={RefreshCw} loading={loading} onClick={() => void loadNeighbors()}>
-            تحديث
-          </Button>
-        }
-      >
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto] xl:items-end">
-          <Field label="بحث في كل البيانات">
+      <Panel title="الجيران" description="فلترة وعرض الأجهزة المكتشفة من السيرفر.">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:items-end">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-500">السيرفر</p>
+            <h2 className="mt-1 truncate text-xl font-bold text-slate-950">{server.name}</h2>
+          </div>
+
+          <Field label="بحث">
             <div className="relative">
               <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className={inputClass('pr-10')}
-                placeholder="ابحث بالهوية، العنوان، MAC، الواجهة..."
+                placeholder="الهوية، العنوان، MAC..."
               />
+            </div>
+          </Field>
+
+          <Field label="الواجهة">
+            <select value={selectedInterface} onChange={(event) => setSelectedInterface(event.target.value)} className={inputClass()}>
+              <option value="">كل الواجهات</option>
+              {interfaceOptions.map((interfaceOption) => (
+                <option key={interfaceOption} value={interfaceOption}>{interfaceOption}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="نطاق IP">
+            <div>
+              <input
+                value={ipRangeText}
+                onChange={(event) => setIpRangeText(event.target.value)}
+                className={inputClass(parsedIpRange.error ? 'border-rose-300 text-left focus:border-rose-500 focus:ring-rose-100' : 'text-left')}
+                dir="ltr"
+                placeholder="172.23.9.0/24"
+              />
+              {parsedIpRange.error ? <p className="mt-1.5 text-xs text-rose-600">{parsedIpRange.error}</p> : null}
             </div>
           </Field>
 
@@ -210,21 +312,9 @@ export function ServerDetailView({ server, token }: { server: ManagedServer; tok
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <StatusPill tone="blue">{filteredNeighbors.length} / {totalCount}</StatusPill>
             <StatusPill tone="neutral">{neighborsResult ? dateShort(neighborsResult.fetchedAt) : 'لم يتم الجلب بعد'}</StatusPill>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-500">API Base</p>
-            <p className="mt-1 truncate text-left font-medium text-slate-900" dir="ltr">{server.apiBaseUrl}</p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-500">Route</p>
-            <p className="mt-1 text-left font-medium text-slate-900" dir="ltr">/ip/neighbor</p>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-500">Interfaces</p>
-            <p className="mt-1 font-medium text-slate-900">{groupedNeighbors.length}</p>
+            <Button type="button" variant="secondary" icon={RefreshCw} loading={loading} onClick={() => void loadNeighbors()} className="min-h-9 px-3 py-1.5">
+              تحديث
+            </Button>
           </div>
         </div>
       </Panel>
